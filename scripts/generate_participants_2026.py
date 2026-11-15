@@ -30,6 +30,7 @@ import argparse
 import csv
 import html
 import io
+import re
 import sys
 from collections import Counter, OrderedDict
 from pathlib import Path
@@ -99,6 +100,8 @@ def read_export(path):
 
 def clean_name(name):
     name = ' '.join(name.split())
+    if name in ('-', '–', '—'):  # "-" is used in the forms for "nobody"
+        return ''
     # Romanian cedilla forms -> the correct comma-below letters
     name = name.translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
     # SURNAME Given-name -> Surname Given-name (also fully upper-case names)
@@ -110,8 +113,16 @@ def clean_country(name):
     return COUNTRY_ALIASES.get(name.lower(), name)
 
 
+# Team names fixed by the organisers: (country, name as submitted) -> display name.
+TEAM_RENAMES = {
+    ('Romania', 'Leuciuc Anca'): 'Vianu 3',  # the team name field held the teacher's name
+    ('Bulgaria', 'A&B school - Gameloft - 2'): 'A&B School - Gameloft - 2',  # same team submitted twice
+}
+
+
 def clean_team(name, country):
     name = ' '.join(name.split()).translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
+    name = TEAM_RENAMES.get((country, name), name)
     prefix = country + '_'
     return name.replace('_', ' ', 1) if name.startswith(prefix) else name  # Georgia_Team 1 -> Georgia Team 1
 
@@ -126,8 +137,14 @@ def parse_timestamp(ts):
     return datetime.min
 
 
+# Countries whose teams are shown without a National/Regional badge for now.
+TYPELESS_COUNTRIES = {'Vietnam'}
+
+
 def default_type(row, country):
     # The form sometimes leaves "Type" empty; such teams (e.g. Bucharest 1/2) are regional.
+    if country in TYPELESS_COUNTRIES:
+        return ''
     print(f"  '{row['Team name']}' ({country}) has no Type in the form: using Regional", file=sys.stderr)
     return 'Regional'
 
@@ -151,6 +168,9 @@ def import_international(path):
         }
         for i in range(1, 5):
             team[f'contestant{i}'] = clean_name(row.get(f'Participant {i} (name)', ''))
+        # a fifth contestant is sometimes written in the free-text field: "Participant 5: Name, T-shirt size: M"
+        m = re.search(r'Participant 5:\s*([^,\n]+)', row.get('Additional information', ''))
+        team['contestant5'] = clean_name(m.group(1)) if m else ''
         team['source'] = 'international'
         team['_ts'] = parse_timestamp(row['Timestamp'])
         key = (country.lower(), team['team'].lower())
@@ -229,7 +249,7 @@ def render_team(team):
     out = ['            <article class="team-card team-card--compact">',
            f'              <div class="team-name">{esc(team["team"])}</div>',
            '              <div class="team-badges">',
-           f'                <span class="badge badge-{esc(kind)}">{esc(team["type"])}</span>',
+           *([f'                <span class="badge badge-{esc(kind)}">{esc(team["type"])}</span>'] if kind else []),
            f'                <span class="badge badge-{esc(mode)}">{esc(team["participation"])}</span>',
            '              </div>',
            '              <div class="team-info">']
