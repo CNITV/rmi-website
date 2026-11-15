@@ -7,7 +7,7 @@ Botul configurează singur cele două servere (**RMI 2026 Online** pentru traduc
 | Comandă | Ce face |
 | --- | --- |
 | `/setup` | Creează rolurile, categoriile, canalele și permisiunile (idempotent, nu șterge nimic). |
-| `/approve member role [country] [team] [name]` | Dă rolul și setează nickname-ul după naming convention. |
+| `/approve member role [country] [team] [name]` | Dă rolul și setează nickname-ul după naming convention. `country` și `team` sunt dropdown-uri (vezi mai jos). |
 | `/revoke member` | Scoate rolurile → persoana nu mai vede nimic. |
 | `/pending` | Lista celor care au intrat dar n-au încă rol. |
 
@@ -33,7 +33,18 @@ Botul configurează singur cele două servere (**RMI 2026 Online** pentru traduc
 | Team Leader | `[RO-A1 TL] Nume` |
 | Contestant | `[RO-A1] Nume` |
 
-Țara + codul echipei sunt completate la `/approve` (`country:RO team:A1`). Formatul de pe on-site (țară + cod echipă) este o presupunere — se schimbă într-o linie, în `profiles.py`.
+### Țară și echipă (dropdown)
+
+La `/approve`, `country` și `team` sunt liste cu căutare (tastezi și se filtrează):
+- **country**: doar țările înscrise, cu steag (🇷🇴 Romania). Pe serverul on-site apar doar țările care au echipe On-site.
+- **team**: apare după ce ai ales țara și arată doar echipele ei (pe on-site, doar cele On-site), cu codul în paranteză: `Vianu 3 (V3)`.
+- Se cer doar unde contează: Team Leader online → doar țara (`[RO-TL]`); Team Leader / Contestant on-site → țara și echipa (`[RO-V3 TL]`, `[RO-V3]`). Nu poți introduce o țară sau echipă care nu e în listă.
+
+Lista vine din `data/participants_2026.csv` (aceeași ca pe pagina de participanți) și se re-citește singură: după un `git pull` și un `python scripts/generate_participants_2026.py --registrations ...` apar echipele noi, fără restart. Fișierul se poate schimba cu `RMI_TEAMS_CSV`.
+
+Codul echipei se generează din nume (inițialele, cifrele păstrate, fără prefixul țării): `Vianu 3` → `V3`, `Romania Juniors 1` → `J1`, `Romania 1` → `1`, `Azerbaijan Team Girls` → `TG`. La coliziuni în aceeași țară se adaugă o literă. Coduri manuale: `TEAM_CODE_OVERRIDES` în `teams.py`. Dacă apare o țară nouă, adaug-o în `COUNTRY_CODES` (un test pică dacă lipsește).
+
+Formatul on-site (țară + cod echipă) este o presupunere — se schimbă într-o linie, în `profiles.py`.
 
 Reguli on-site: doar Admin/Organizing/Volunteer pot crea canale noi (au *Manage Channels*), `#announcements` e scriere doar pentru organizatori, voluntarii au canale separate. Nu există canale pe țară/echipă (deocamdată).
 

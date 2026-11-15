@@ -8,7 +8,7 @@ from profiles import RoleSpec
 NICK_MAX = 32  # limita Discord
 
 _COUNTRY = re.compile(r"[A-Za-z]{2,3}")
-_TEAM = re.compile(r"[A-Za-z0-9]{1,4}")
+_TEAM = re.compile(r"[A-Za-z0-9]{1,6}")
 
 
 class NamingError(ValueError):
@@ -23,7 +23,7 @@ def build_nick(role: RoleSpec, name: str, country: str | None = None, team: str 
             raise NamingError(f"Rolul „{role.name}” cere parametrul `{field}`.")
         pattern = _COUNTRY if field == "country" else _TEAM
         if not pattern.fullmatch(value):
-            hint = "2-3 litere, ex. RO" if field == "country" else "1-4 litere/cifre, ex. A1"
+            hint = "2-3 litere, ex. RO" if field == "country" else "1-6 litere/cifre, ex. V3"
             raise NamingError(f"`{field}` invalid: „{value}” ({hint}).")
         fields[field] = value.upper()
 

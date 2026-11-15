@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 
 from naming import NamingError, build_nick
 from profiles import BOT_LOG, JOIN_REQUESTS, PROFILES, Profile
+from teams import load_catalog, norm
 from setup_server import apply_profile
 
 load_dotenv()
@@ -104,6 +105,38 @@ async def _role_autocomplete(interaction: discord.Interaction, current: str):
     ]
 
 
+
+def _matches(current: str, *haystacks: str) -> bool:
+    q = norm(current)
+    return not q or any(q in norm(h) for h in haystacks)
+
+
+async def _country_autocomplete(interaction: discord.Interaction, current: str):
+    profile = profile_for(interaction.guild) if interaction.guild else None
+    if profile is None:
+        return []
+    return [
+        app_commands.Choice(name=c.label, value=c.name)
+        for c in load_catalog().for_profile(profile.key)
+        if _matches(current, c.name, c.iso)
+    ][:25]
+
+
+async def _team_autocomplete(interaction: discord.Interaction, current: str):
+    profile = profile_for(interaction.guild) if interaction.guild else None
+    chosen = getattr(interaction.namespace, "country", None)
+    if profile is None or not chosen:
+        return []  # întâi țara
+    country = load_catalog().find_country(chosen, profile.key)
+    if country is None:
+        return []
+    return [
+        app_commands.Choice(name=f"{t.name} ({t.code})"[:100], value=t.name[:100])
+        for t in country.teams
+        if _matches(current, t.name, t.code)
+    ][:25]
+
+
 # --- comenzi -----------------------------------------------------------------
 
 
@@ -141,12 +174,12 @@ async def setup_cmd(interaction: discord.Interaction, profil: str | None = None)
 @tree.command(name="approve", description="Aprobă un membru: îi dă rolul și nickname-ul corect.")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-@app_commands.autocomplete(role=_role_autocomplete)
+@app_commands.autocomplete(role=_role_autocomplete, country=_country_autocomplete, team=_team_autocomplete)
 @app_commands.describe(
     member="Persoana de aprobat",
     role="Rolul",
-    country="Țara, ex. RO (obligatoriu pentru Team Leader / Contestant)",
-    team="Codul echipei, ex. A1 (obligatoriu la on-site pentru Team Leader / Contestant)",
+    country="Țara (lista cu steaguri; doar țările înscrise). Pentru Team Leader / Contestant",
+    team="Echipa (apare după ce alegi țara). Doar la on-site, pentru Team Leader / Contestant",
     name="Numele de afișat (implicit: numele de pe Discord)",
 )
 async def approve(
@@ -170,8 +203,31 @@ async def approve(
     roles = _profile_roles(guild, profile)
     if spec.key not in roles:
         return await interaction.response.send_message("Rolul nu există încă. Rulează `/setup`.", ephemeral=True)
+    iso = team_code = None
+    place = ""
+    if "country" in spec.required_fields:
+        catalog = load_catalog()
+        if not catalog.countries:
+            return await interaction.response.send_message("❌ Lipsește lista de echipe (data/participants_2026.csv).", ephemeral=True)
+        if not country:
+            return await interaction.response.send_message("❌ Alege țara din listă.", ephemeral=True)
+        found = catalog.find_country(country, profile.key)
+        if found is None:
+            return await interaction.response.send_message(
+                f"❌ „{country}” nu e o țară înscrisă. Alege din listă.", ephemeral=True
+            )
+        iso, place = found.iso, found.label
+        if "team" in spec.required_fields:
+            if not team:
+                return await interaction.response.send_message("❌ Alege echipa din listă.", ephemeral=True)
+            found_team = catalog.find_team(found, team)
+            if found_team is None:
+                return await interaction.response.send_message(
+                    f"❌ „{team}” nu e o echipă din {found.name} (on-site). Alege din listă.", ephemeral=True
+                )
+            team_code, place = found_team.code, f"{found.label} · {found_team.name}"
     try:
-        nick = build_nick(spec, name or member.display_name, country, team)
+        nick = build_nick(spec, name or member.display_name, iso, team_code)
     except NamingError as e:
         return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
 
@@ -190,8 +246,8 @@ async def approve(
         await member.edit(nick=nick, reason="RMI bot: naming convention")
     except discord.Forbidden:
         nick_note = f"\n⚠️ Rol acordat, dar nu am putut schimba nickname-ul (owner/rol mai sus). Setează-l manual: `{nick}`"
-    await interaction.followup.send(f"✅ {member.mention} → **{spec.name}** · `{nick}`{nick_note}", ephemeral=True)
-    await _log(guild, f"✅ {interaction.user.mention} a aprobat {member.mention} ca **{spec.name}** (`{nick}`).")
+    await interaction.followup.send(f"✅ {member.mention} → **{spec.name}**{f' · {place}' if place else ''} · `{nick}`{nick_note}", ephemeral=True)
+    await _log(guild, f"✅ {interaction.user.mention} a aprobat {member.mention} ca **{spec.name}**{f' ({place})' if place else ''} · `{nick}`.")
 
 
 @tree.command(name="revoke", description="Scoate rolurile RMI unui membru (nu mai vede nimic).")
