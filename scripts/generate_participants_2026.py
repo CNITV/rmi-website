@@ -30,6 +30,7 @@ import argparse
 import csv
 import html
 import io
+import re
 import sys
 from collections import Counter, OrderedDict
 from pathlib import Path
@@ -99,6 +100,8 @@ def read_export(path):
 
 def clean_name(name):
     name = ' '.join(name.split())
+    if name in ('-', '–', '—'):  # "-" is used in the forms for "nobody"
+        return ''
     # Romanian cedilla forms -> the correct comma-below letters
     name = name.translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
     # SURNAME Given-name -> Surname Given-name (also fully upper-case names)
@@ -110,8 +113,16 @@ def clean_country(name):
     return COUNTRY_ALIASES.get(name.lower(), name)
 
 
+# Team names fixed by the organisers: (country, name as submitted) -> display name.
+TEAM_RENAMES = {
+    ('Romania', 'Leuciuc Anca'): 'Vianu 3',  # the team name field held the teacher's name
+    ('Bulgaria', 'A&B school - Gameloft - 2'): 'A&B School - Gameloft - 2',  # same team submitted twice
+}
+
+
 def clean_team(name, country):
     name = ' '.join(name.split()).translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
+    name = TEAM_RENAMES.get((country, name), name)
     prefix = country + '_'
     return name.replace('_', ' ', 1) if name.startswith(prefix) else name  # Georgia_Team 1 -> Georgia Team 1
 
@@ -151,6 +162,9 @@ def import_international(path):
         }
         for i in range(1, 5):
             team[f'contestant{i}'] = clean_name(row.get(f'Participant {i} (name)', ''))
+        # a fifth contestant is sometimes written in the free-text field: "Participant 5: Name, T-shirt size: M"
+        m = re.search(r'Participant 5:\s*([^,\n]+)', row.get('Additional information', ''))
+        team['contestant5'] = clean_name(m.group(1)) if m else ''
         team['source'] = 'international'
         team['_ts'] = parse_timestamp(row['Timestamp'])
         key = (country.lower(), team['team'].lower())
