@@ -137,8 +137,14 @@ def parse_timestamp(ts):
     return datetime.min
 
 
+# Countries whose teams are shown without a National/Regional badge for now.
+TYPELESS_COUNTRIES = {'Vietnam'}
+
+
 def default_type(row, country):
     # The form sometimes leaves "Type" empty; such teams (e.g. Bucharest 1/2) are regional.
+    if country in TYPELESS_COUNTRIES:
+        return ''
     print(f"  '{row['Team name']}' ({country}) has no Type in the form: using Regional", file=sys.stderr)
     return 'Regional'
 
@@ -243,7 +249,7 @@ def render_team(team):
     out = ['            <article class="team-card team-card--compact">',
            f'              <div class="team-name">{esc(team["team"])}</div>',
            '              <div class="team-badges">',
-           f'                <span class="badge badge-{esc(kind)}">{esc(team["type"])}</span>',
+           *([f'                <span class="badge badge-{esc(kind)}">{esc(team["type"])}</span>'] if kind else []),
            f'                <span class="badge badge-{esc(mode)}">{esc(team["participation"])}</span>',
            '              </div>',
            '              <div class="team-info">']
