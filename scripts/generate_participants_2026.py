@@ -129,6 +129,7 @@ PARTICIPATION_OVERRIDES = {
 def clean_team(name, country):
     name = ' '.join(name.split()).translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
     name = TEAM_RENAMES.get((country, name), name)
+    name = re.sub(r'^vianu\s+e?(\d+)$', r'Vianu \1', name, flags=re.I)  # VIANU 6 / Vianu E1 -> Vianu 6 / Vianu 1
     prefix = country + '_'
     return name.replace('_', ' ', 1) if name.startswith(prefix) else name  # Georgia_Team 1 -> Georgia Team 1
 
