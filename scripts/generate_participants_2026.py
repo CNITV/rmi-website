@@ -120,6 +120,11 @@ TEAM_RENAMES = {
     ('Bulgaria', 'A&B School - Gameloft-1'): 'A&B School - Gameloft - 1',  # same spacing as teams 2 and 3
 }
 
+# Changes of participation reported after the registration: (country, team) -> 'On-site' / 'Online'.
+PARTICIPATION_OVERRIDES = {
+    ('Cyprus', 'Cyprus-Island'): 'Online',  # moved online
+}
+
 
 def clean_team(name, country):
     name = ' '.join(name.split()).translate(str.maketrans('şŞţŢ', 'șȘțȚ'))
@@ -159,11 +164,12 @@ def import_international(path):
         leader = clean_name(row.get('Team leader name', ''))
         if '@' in leader:  # a submission where the e-mail was typed into the name field
             leader = clean_name(row.get('Contact person (name)', ''))
+        team_name = clean_team(row['Team name'], country)
         team = {
             'country': country,
             'type': row['Type'].strip().title() or default_type(row, country),
-            'participation': row['Participation'].strip(),
-            'team': clean_team(row['Team name'], country),
+            'participation': PARTICIPATION_OVERRIDES.get((country, team_name), row['Participation'].strip()),
+            'team': team_name,
             'leader': leader,
             'deputy': clean_name(row.get('Deputy leader name', '')),
         }
