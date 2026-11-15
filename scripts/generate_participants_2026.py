@@ -117,6 +117,7 @@ def clean_country(name):
 TEAM_RENAMES = {
     ('Romania', 'Leuciuc Anca'): 'Vianu 3',  # the team name field held the teacher's name
     ('Bulgaria', 'A&B school - Gameloft - 2'): 'A&B School - Gameloft - 2',  # same team submitted twice
+    ('Bulgaria', 'A&B School - Gameloft-1'): 'A&B School - Gameloft - 1',  # same spacing as teams 2 and 3
 }
 
 
