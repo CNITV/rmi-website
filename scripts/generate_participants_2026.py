@@ -74,6 +74,7 @@ HIDDEN_TEAMS = {
     ('Vietnam', 'Nub'),
     ('Vietnam', 'nathan'),
     ('Vietnam', 'DoryperPevin'),
+    ('Vietnam', 'vnvd'),
 }
 
 # Contestants that are not in the participant fields of the Romanian regional form
@@ -151,7 +152,11 @@ def parse_timestamp(ts):
             return datetime.strptime(ts, fmt)
         except ValueError:
             pass
-    return datetime.min
+    try:  # Excel / Google Sheets serial date (e.g. 46335.91), when the export comes from an .xlsx
+        from datetime import timedelta
+        return datetime(1899, 12, 30) + timedelta(days=float(ts))
+    except ValueError:
+        return datetime.min
 
 
 # Countries whose teams are shown without a National/Regional badge for now.
