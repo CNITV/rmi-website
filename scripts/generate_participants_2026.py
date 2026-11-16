@@ -75,6 +75,8 @@ HIDDEN_TEAMS = {
     ('Vietnam', 'nathan'),
     ('Vietnam', 'DoryperPevin'),
     ('Vietnam', 'vnvd'),
+    ('Vietnam', 'miyabi'),
+    ('Vietnam', 'Minh'),
 }
 
 # Contestants that are not in the participant fields of the Romanian regional form
@@ -104,8 +106,9 @@ def fix_mojibake(text):
 
 def read_export(path):
     text = Path(path).read_text(encoding='utf-8-sig', newline='')
-    reader = csv.DictReader(io.StringIO(text))
-    reader.fieldnames = [fix_mojibake(h) for h in reader.fieldnames]
+    # skipinitialspace + stripped headers: some exports are column-aligned with spaces around the values
+    reader = csv.DictReader(io.StringIO(text), skipinitialspace=True)
+    reader.fieldnames = [fix_mojibake(h).strip() for h in reader.fieldnames]
     return [{k: fix_mojibake((v or '').strip()) for k, v in row.items() if k} for row in reader]
 
 
@@ -207,7 +210,7 @@ def import_international(path):
 
 
 def import_ro_regional(path):
-    teams = []
+    teams = OrderedDict()
     for row in read_export(path):
         county = row.get('Județ', '')
         if not county:
@@ -230,8 +233,13 @@ def import_ro_regional(path):
         }
         for i, name in enumerate(contestants, 1):
             team[f'contestant{i}'] = name
-        teams.append(team)
-    return teams
+        team['_ts'] = parse_timestamp(row.get('Timestamp', ''))
+        if county in teams:
+            print(f"  duplicate submission for county '{county}': keeping the latest one", file=sys.stderr)
+            if team['_ts'] < teams[county]['_ts']:
+                continue
+        teams[county] = team
+    return list(teams.values())
 
 
 def run_import(international=None, ro_regional=None):
