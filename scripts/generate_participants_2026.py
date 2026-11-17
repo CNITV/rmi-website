@@ -66,18 +66,10 @@ TEAM_ORDER = {
                 'Romania - Girls Junior'],
 }
 
-# Teams kept in data/participants_2026.csv but not shown on the page (and not counted in the summary)
-# for the moment. Remove an entry to show the team again. (country, team name)
-HIDDEN_TEAMS = {
-    ('Vietnam', '5D Onion Decomposition'),
-    ('Vietnam', 'binminh'),
-    ('Vietnam', 'Nub'),
-    ('Vietnam', 'nathan'),
-    ('Vietnam', 'DoryperPevin'),
-    ('Vietnam', 'vnvd'),
-    ('Vietnam', 'miyabi'),
-    ('Vietnam', 'Minh'),
-}
+# Kept in data/participants_2026.csv but not shown on the page (and not counted in the summary) for the moment.
+# Remove an entry to show them again.
+HIDDEN_COUNTRIES = {'Vietnam'}  # every team of these countries, including teams that register later
+HIDDEN_TEAMS = set()  # single teams: (country, team name)
 
 # Contestants that are not in the participant fields of the Romanian regional form
 # (e.g. only mentioned in the free-text notes), keyed by county. Added after the form's contestants.
@@ -385,9 +377,9 @@ def main():
         run_import(args.registrations, args.ro_regional)
 
     all_teams = load_teams()
-    teams = [t for t in all_teams if (t['country'], t['team']) not in HIDDEN_TEAMS]
+    teams = [t for t in all_teams if t['country'] not in HIDDEN_COUNTRIES and (t['country'], t['team']) not in HIDDEN_TEAMS]
     if len(teams) != len(all_teams):
-        print(f'Hidden on the page: {len(all_teams) - len(teams)} team(s) (HIDDEN_TEAMS)')
+        print(f'Hidden on the page: {len(all_teams) - len(teams)} team(s) (HIDDEN_COUNTRIES / HIDDEN_TEAMS)')
     page, n_countries, n_teams, n_contestants, kinds = render_page(teams)
     OUT_PATH.write_text(page, encoding='utf-8', newline='\n')
     print(f'Wrote {OUT_PATH.relative_to(ROOT)}: {n_countries} countries, {n_teams} teams '
