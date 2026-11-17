@@ -68,7 +68,7 @@ TEAM_ORDER = {
 
 # Kept in data/participants_2026.csv but not shown on the page (and not counted in the summary) for the moment.
 # Remove an entry to show them again.
-HIDDEN_COUNTRIES = {'Vietnam'}  # every team of these countries, including teams that register later
+HIDDEN_COUNTRIES = set()  # every team of these countries, including teams that register later (e.g. {'Vietnam'})
 HIDDEN_TEAMS = set()  # single teams: (country, team name)
 
 # Contestants that are not in the participant fields of the Romanian regional form
